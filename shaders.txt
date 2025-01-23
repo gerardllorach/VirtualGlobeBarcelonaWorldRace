@@ -1,0 +1,594 @@
+// Point basic shader
+\point.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	uniform float u_pointSize;
+	uniform mat4 u_mvp;
+	void main() {
+		vec3 pos = a_vertex;
+		pos.y = a_vertex.x / 90.0;
+		pos.x = a_vertex.y / 180.0;
+		gl_Position = vec4(pos, 1.0);
+		gl_PointSize = u_pointSize;
+	}
+
+\point.fs
+	precision highp float;
+	uniform vec4 u_color;
+	void main() {
+	 	gl_FragColor = u_color;
+	}
+
+
+
+
+// Skybox shader
+\skybox.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec2 a_coord;
+	varying vec2 v_coord;
+	uniform mat4 u_mvp;
+	void main() {
+		v_coord = a_coord;
+		gl_Position = u_mvp * vec4(a_vertex,1.0);
+	}
+
+\skybox.fs
+	precision highp float;
+	uniform sampler2D u_texture;
+	varying vec2 v_coord;
+	uniform float u_brightness;
+	void main() {
+	 	gl_FragColor = texture2D(u_texture, v_coord) * u_brightness;
+	}
+
+
+
+
+// FX shader
+\fx.vs
+      precision highp float;
+      attribute vec3 a_vertex;
+      attribute vec2 a_coord;
+      varying vec2 v_coord;
+      void main() { 
+        v_coord = a_coord; 
+        gl_Position = vec4(a_coord * 2.0 - 1.0, 0.0, 1.0); 
+      }
+
+\fx.fs
+	precision highp float;
+	uniform sampler2D u_texture;
+	varying vec2 v_coord;
+	uniform float u_brightness;
+	void main() {
+
+	 	gl_FragColor = texture2D(u_texture, v_coord) * vec4(1.0,0.0,0.0,1.0);
+
+	}
+
+
+
+
+
+// Sun shader
+\sun.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec2 a_coord;
+	varying vec2 v_coord;
+	uniform mat4 u_mvp;
+	void main() {
+		v_coord = a_coord;
+		gl_Position = u_mvp * vec4(a_vertex,1.0);
+	}
+
+\sun.fs
+	precision highp float;
+	varying vec2 v_coord;
+	uniform sampler2D u_texture;
+	uniform vec4 u_color;
+	void main() {
+		vec4 color = vec4(texture2D(u_texture, v_coord).xyz * u_color.xyz, 1.0);
+		color.a = color.r * u_color.a;
+	 	gl_FragColor = color;
+	}
+
+
+
+
+// Boats shader
+\boat.vs
+precision highp float;
+attribute vec3 a_vertex;
+uniform mat4 u_mvp;
+varying float u_boattime;
+vec3 convertVertex(float radius, vec3 v)
+{
+	float lat = v.x * 0.0174532925;
+	float lon = (v.y- 90.0) * 0.0174532925;
+	float coslat = cos(lat);
+	float x = radius * coslat * sin(lon);
+	float y = radius * sin(lat);
+	float z = radius * coslat * cos(lon);
+	return vec3( x, y, z );
+}
+void main() {
+	vec3 pos = convertVertex(1.002, a_vertex );
+	u_boattime = a_vertex.z;
+	gl_Position = u_mvp * vec4(pos,1.0);
+	gl_PointSize = 1.0;
+}
+
+\boat.fs
+precision highp float;
+uniform vec4 u_color;
+uniform float u_trailLength;
+varying float u_boattime;
+//uniform float u_calcTime;
+void main() {
+
+	float boat_time = u_boattime * 0.0001;
+	float f = max(1.0 - boat_time*u_trailLength, 0.0);
+	if(f < 0.0001)
+		f = 0.0;//discard; //remaining trail color
+	// if (u_color.y == 0.3)
+	// 	f = max(f, 0.2);
+
+	gl_FragColor = vec4(u_color.xyz, u_color.a * f);
+}
+
+
+
+
+
+
+
+
+
+// Boat Selected shader
+\boatSel.vs
+precision highp float;
+attribute vec3 a_vertex;
+uniform mat4 u_mvp;
+varying float u_boattime;
+vec3 convertVertex(float radius, vec3 v)
+{
+	float lat = v.x * 0.0174532925;
+	float lon = (v.y- 90.0) * 0.0174532925;
+	float coslat = cos(lat);
+	float x = radius * coslat * sin(lon);
+	float y = radius * sin(lat);
+	float z = radius * coslat * cos(lon);
+	return vec3( x, y, z );
+}
+void main() {
+	vec3 pos = convertVertex(1.002, a_vertex);
+	u_boattime = a_vertex.z;
+	gl_Position = u_mvp * vec4(pos,1.0);
+}
+
+\boatSel.fs
+precision highp float;
+uniform vec4 u_color;
+varying float u_boattime;
+uniform float u_minA;
+uniform float u_ttime;
+void main() {
+	float f = 1.0;
+	float boat_time = u_boattime * 0.0001;
+	if(u_ttime < boat_time)
+  		discard;
+  
+  	if (u_boattime <= 0.0)
+  		discard;
+	
+	f = max(1.0 - (u_ttime - boat_time)*0.5,0.0);
+	
+	if (u_minA == 1.0)
+		f = 1.0;
+	else if(f < u_minA)
+		f = u_minA;
+
+
+	gl_FragColor = vec4(u_color.xyz, u_color.a * f);
+}
+
+
+
+
+
+
+
+
+// BoatsPaths texture shader
+\boatsPath.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	varying float v_endLine;
+	uniform mat4 u_mvp;
+	void main() {
+		vec3 pos = a_vertex;
+		pos.y = a_vertex.x / 90.0;
+		pos.x = a_vertex.y / 180.0;
+		if (pos.z != -1.0)
+			pos.z = 0.0;
+		v_endLine = pos.z + 1.0;
+		gl_Position = vec4(pos, 1.0);
+	}
+
+\boatsPath.fs
+	precision highp float;
+	varying float v_endLine;
+	uniform vec4 u_color;
+	void main() {
+	 	gl_FragColor = vec4(u_color.xyz, u_color.a * v_endLine);
+	}
+
+
+// Blur boatsPath texture
+\blur.vs
+	precision highp float;
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec2 a_coord;
+	varying vec2 v_coord;
+	void main() {
+		v_coord = a_coord;
+		gl_Position = vec4(a_coord * 2.0 - 1.0, 0.0 ,1.0);
+	}
+
+\blur.fs
+	precision highp float;
+	varying vec2 v_coord;
+	uniform sampler2D u_texture;
+	uniform vec2 u_isize;
+	uniform vec4 u_color;
+	vec4 neighbours(vec2 dist){
+
+		vec4 cR = texture2D(u_texture, v_coord + dist  * vec2(1.0, 0.0)) * vec4 (0.5);
+		vec4 cL = texture2D(u_texture, v_coord + dist  * vec2(-1.0, 0.0));
+		vec4 cUp = texture2D(u_texture, v_coord + dist  * vec2(0.0, 1.0));
+		vec4 cDn = texture2D(u_texture, v_coord + dist  * vec2(0.0, -1.0));
+
+		vec4 cRUp = texture2D(u_texture, v_coord + dist  * vec2(1.0, 1.0));
+		vec4 cLUp = texture2D(u_texture, v_coord + dist  * vec2(-1.0, 1.0));
+		vec4 cRDn = texture2D(u_texture, v_coord + dist  * vec2(1.0, -1.0));
+		vec4 cLDn = texture2D(u_texture, v_coord + dist  * vec2(-1.0, -1.0));
+
+		return (cR + cL + cUp + cDn + cRUp + cLUp + cRDn + cLDn)/8.0;
+
+	}
+	void main() {
+		
+	 	gl_FragColor = texture2D(u_texture, v_coord)*1.0 +  neighbours(u_isize) * 0.5;
+	 	//gl_FragColor = texture2D(u_texture, v_coord);
+	 	//gl_FragColor = texture2D(u_texture, v_coord);
+	 	//gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+	}
+
+
+
+
+
+
+
+
+// Wind shader
+\wind.vs
+precision highp float;
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec2 a_coord;
+	varying vec2 v_coord;
+	uniform mat4 u_mvp;
+	void main() {
+		v_coord = a_coord;
+		gl_Position = u_mvp * vec4(a_vertex,1.0);
+	}
+
+\wind.fs
+	precision highp float;
+	varying vec2 v_coord;
+	uniform sampler2D u_texture;
+	uniform sampler2D u_scale;
+	uniform vec4 u_color;
+	void main() {
+		vec4 Twind = texture2D(u_texture, v_coord);
+		vec3 factors = texture2D(u_scale, vec2(Twind.y, 0.5)).xyz;
+		vec4 intensity = vec4(factors.x, factors.y, factors.z, 0.1);
+	 	gl_FragColor = intensity;
+	}
+
+
+
+
+// Wind paths shader
+\windPath.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec3 a_normal;
+	varying vec3 v_normal;
+	uniform float u_pointSize;
+	uniform mat4 u_mvp;
+	void main() {
+		v_normal = a_normal;
+		gl_Position = u_mvp * vec4(a_vertex,1.0);
+		//gl_PointSize = u_pointSize * v_normal.y;
+	}
+
+\windPath.fs
+	precision highp float;
+	varying vec3 v_normal;
+	uniform float u_alpha;
+	uniform sampler2D u_texture;
+	void main() {
+
+		float alphaF = mod(u_alpha + v_normal.y, 2.0)/4.0;
+
+		vec3 factors = texture2D(u_texture, vec2(v_normal.z, 0.5)).xyz;
+		if (v_normal.x * alphaF * 0.5 < 0.1)
+			discard;
+		vec4 intensity = vec4(factors.x, factors.y, factors.z, v_normal.x * alphaF * 0.5);
+
+	 	gl_FragColor = intensity;
+	}
+
+ 
+
+
+
+// Clouds shader
+\clouds.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec3 a_normal;
+	attribute vec2 a_coord;
+	varying vec3 v_normal;
+	varying vec2 v_coord;
+	uniform mat4 u_model;
+	uniform mat4 u_mvp;
+	void main(){
+		v_coord = a_coord;
+		v_normal = (u_model * vec4(a_normal, 0.0)).xyz;
+		gl_Position = u_mvp * vec4(a_vertex, 1.0);
+	}
+
+\clouds.fs
+	precision highp float;
+	varying vec3 v_normal;
+	varying vec2 v_coord;
+	uniform vec3 u_lightvector;
+	uniform sampler2D u_texture;
+	uniform float u_opt;
+	void main(){
+		vec3 N = normalize(v_normal);
+		float color = texture2D(u_texture, v_coord).x;
+		float color2 = texture2D(u_texture, vec2(-1.0, -1.0)*v_coord + vec2(1.0, 1.0)).x;
+
+		float diffColor = (color2*(1.0-color) + color*(1.0-color2)) * (pow(max(0.0, dot (u_lightvector, N)), 0.3)-0.2);
+		gl_FragColor = vec4(diffColor);
+	}
+
+
+
+
+
+
+// Earth shader
+\earth.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec3 a_normal;
+	attribute vec2 a_coord;
+	varying vec3 v_normal;
+	varying vec2 v_coord;
+	varying vec3 v_wPos;
+	uniform mat4 u_mvp;
+	uniform mat4 u_model;
+	void main() {
+		v_coord = a_coord;
+		v_normal = (u_model * vec4(a_normal, 0.0)).xyz;
+		v_wPos = (u_model * vec4(a_vertex,1.0)).xyz;
+		gl_Position = u_mvp * vec4(a_vertex,1.0);
+	}
+
+\earth.fs
+	#extension GL_OES_standard_derivatives : enable 
+	precision highp float;
+	varying vec3 v_normal;
+	varying vec2 v_coord;
+	varying vec3 v_wPos;
+	uniform vec3 u_lightvector;
+	uniform vec4 u_color;
+	uniform sampler2D u_0_texture; // Earth
+	uniform sampler2D u_1_texture; // Night
+	uniform sampler2D u_2_texture; // Specular
+	uniform sampler2D u_3_texture; // Normals
+	uniform mat4 u_mvp;
+	uniform vec3 u_camPos;
+	uniform float u_opt;
+
+	mat3 cotangent_frame(vec3 N, vec3 p, vec2 uv)
+	{
+		// get edge vectors of the pixel triangle
+		vec3 dp1 = dFdx( p );
+		vec3 dp2 = dFdy( p );
+		vec2 duv1 = dFdx( uv );
+		vec2 duv2 = dFdy( uv );
+	 
+		// solve the linear system
+		vec3 dp2perp = cross( dp2, N );
+		vec3 dp1perp = cross( N, dp1 );
+		vec3 T = dp2perp * duv1.x + dp1perp * duv2.x;
+		vec3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+		//B *= -1.0; //reverse y, HACK, dont know why but works
+	 
+		// construct a scale-invariant frame 
+		float invmax = inversesqrt( max( dot(T,T), dot(B,B) ) );
+		return mat3( T * invmax, B * invmax, N );
+	}
+	vec3 perturbNormal( vec3 N, vec3 V, vec2 texcoord, vec3 normal_pixel )
+	{
+		// assume N, the interpolated vertex normal and 
+		// V, the view vector (vertex to eye)
+		//vec3 normal_pixel = texture2D(normalmap, texcoord ).xyz;
+		normal_pixel = normal_pixel * 255./127. - 128./127.;
+		mat3 TBN = cotangent_frame(N, V, texcoord);
+		return normalize(TBN * normal_pixel);
+	}
+	void main() {
+		vec3 Nt = texture2D(u_3_texture, v_coord).xyz;
+		vec3 N = normalize(v_normal);
+
+		vec3 E = normalize(u_camPos-v_wPos);
+		//Nt = normalize((u_mvp * vec4(Nt, 0.0)).xyz);
+		//Nt = normalize(v_normal * Nt);
+		vec3 cr = vec3 (1.0, 1.0, 1.0); 
+		Nt = perturbNormal (N * vec3(1.0, 1.0, 1.0) , E, v_coord, Nt *cr);
+		
+		vec3 lightReflect = normalize(reflect(-u_lightvector, N));
+		float fresnel = pow(dot(E, N), 0.00001);
+		vec4 color =  u_color * texture2D(u_0_texture, v_coord);
+		vec4 night = texture2D(u_1_texture, v_coord);
+		float specText = texture2D(u_2_texture, v_coord).x;
+		
+		specText = specText * max (0.0, dot(u_lightvector, N));
+		vec4 diffColor = color * max(0.02, dot (u_lightvector, Nt));
+		if (dot(u_lightvector,N)< 0.2){
+			float fctrDayNight = (clamp(dot(u_lightvector,N), 0.0, 0.2)) * 5.0;
+			diffColor = diffColor * fctrDayNight + (1.0-fctrDayNight) * night;
+		}
+
+		float vELight = max(0.0, dot(E,lightReflect));
+		vec4 specColor = vec4(specText,specText,specText,1.0) * pow(vELight, 3.0);		
+
+	 	gl_FragColor = (specColor*0.3 + diffColor + 50000.0*diffColor*(1.0-fresnel));
+	 	//gl_FragColor = vec4 (Nt, 1.0);
+	 }
+//fresnel + (1.0-fresnel) * vec4(0.4, 0.6, 1.0, 1.0)
+
+
+
+
+
+
+
+
+
+// Atmosphere shader
+\atmosphere.vs
+	precision highp float;
+	attribute vec3 a_vertex;
+	attribute vec3 a_normal;
+	varying vec3 v_wPos;
+	varying vec3 v_normal;
+	uniform mat4 u_model;
+	uniform mat4 u_mvp;
+	void main() {
+		v_wPos = (u_model * vec4(a_vertex,1.0)).xyz;
+		v_normal = (u_model * vec4(a_normal, 0.0)).xyz;
+		gl_Position = u_mvp * vec4(a_vertex,1.0);
+	}
+
+\atmosphere.fs
+	precision highp float;
+	varying vec3 v_wPos;
+	varying vec3 v_normal;
+	uniform vec3 u_camPos;
+	uniform vec3 u_sunDir;
+	uniform float u_earthRad;
+	uniform float u_atmsRad;
+	uniform sampler2D u_tex_atms;
+	uniform float u_incr;
+	uniform float u_opt1;
+	float intersectSphere(vec3 rayO, vec3 rayD, float rad){
+		float b = 2.0 * dot(rayD, rayO);
+		float c = dot(rayO,rayO) - rad * rad;
+		float disc = b * b - 4.0 * c;
+		if (disc < 0.0)
+			return -1.0;
+		float q;
+		if (b<0.0)
+			q = (-b - sqrt(disc))/2.0;
+		else
+			q= (-b + sqrt(disc))/2.0;
+		float t0 = q;
+		float t1 = c/q;
+		if (t0 > t1){
+			float temp = t0;
+			t0 = t1;
+			t1 = temp;
+		}
+		if (t1<0.0)
+			return -1.0;
+		if (t0<0.0)
+			return t1;
+		else
+			return t0;
+	}
+	vec4 colorAtms(vec3 wPos, vec3 V, float density, float i){
+		vec3 point = wPos + V * density*i/6.0;
+		float weight = (length(point)-u_earthRad)/(u_atmsRad-u_earthRad);
+		float sunWeight = (dot(normalize(point), u_sunDir) + 1.0) * 0.5;
+		return texture2D(u_tex_atms, vec2(sunWeight, weight));
+	}
+	void main() {
+		vec3 V = normalize (v_wPos - u_camPos);
+		vec3 N = normalize (v_normal);
+		vec4 color = vec4(0.0);
+
+
+		// Calculate densities
+		float atmsDens = intersectSphere(v_wPos, V, u_atmsRad+0.01); // Atms rad bigger to be inside it
+		if (atmsDens == -1.0)
+			discard;
+		float earthDens = intersectSphere(v_wPos, V, u_earthRad);
+
+		// Calculate atmosphere color
+		vec4 p0 = colorAtms(v_wPos, V, atmsDens, 1.0);
+		vec4 p1 = colorAtms(v_wPos, V, atmsDens, 2.0);
+		vec4 p2 = colorAtms(v_wPos, V, atmsDens, 3.0);
+		vec4 p3 = colorAtms(v_wPos, V, atmsDens, 4.0);
+		vec4 p4 = colorAtms(v_wPos, V, atmsDens, 5.0);
+
+		color = (p0 + p1 + p2 + p3 + p4)*0.2;
+		
+		
+
+		// Sunset effects
+		vec4 color2 = vec4(0.0);
+		if (earthDens == -1.0){
+			float factor1 = pow(atmsDens, 12.0);
+			float factor2 = pow(max(0.0,dot(V, u_sunDir)), 200.0); // 100
+			float factor3 = pow(max(0.0,dot(V, u_sunDir)), 25.0); // 40
+			float factor4 = pow(max(0.0, dot(u_sunDir, N)), 3.0); // 3
+			float factor5 = pow(earthDens*2.0, 2.0);
+			color2 = vec4(1.0, 0.7, 0.3, factor1*factor3 + pow(atmsDens, 2.0)*factor2);// factor2*0.2);
+			if (atmsDens == -1.0){
+				color2.a = 0.0;
+			}
+		} else {
+			float factor1 = pow(earthDens*2.0, 3.0); // 2, 3
+			float factor2 = pow(max(0.0,dot(V, u_sunDir)), 30.0);
+			color2 = vec4(1.0, 0.7, 0.3, factor1 * factor2 + factor1 * factor2 * pow(max(0.0,dot(V, u_sunDir)), 200.0)*pow(atmsDens, 2.0));
+		}
+
+
+
+		// Alpha
+		if (earthDens < 0.0)
+			earthDens = 1.0;
+		earthDens = 80.0*pow(earthDens, 5.0);
+		atmsDens = 1.5 * pow (atmsDens, 5.0);
+		color.a = clamp(earthDens, 0.0, 1.0) * clamp(atmsDens, 0.0, 1.0);
+
+
+		gl_FragColor = color + color2*color2.a;
+	}
+
+
+
+
+
